@@ -18,4 +18,6 @@ int server_handshake(int *to_client);
 
 int client_handshake(int *to_server);
 
+char * scream(char * input);
+
 #endif

@@ -1,13 +1,38 @@
 #include "pipe_networking.h"
 
 char *WKP = "server";
+
+
+char* scream(char * input) {
+  char * screamed = malloc(256 * sizeof(char));
+
+  for (int i = 0; input[i]!= '\0'; i++){
+    if((input[i]>='a' && input[i]<='z'))
+      screamed[i] = input[i] - 32;
+    if(input[i]>='A' && input[i]<='Z')
+				screamed[i]=input[i]+32;
+    if(input[i]==' ')
+      screamed[i] = input[i];
+    }
+  //strcpy(screamed, input);
+  //printf("screamed output:%s\n", screamed);
+  return screamed;
+}
+
+static void sighandler(int signo) {
+  if (signo == SIGINT) {
+    signal( signo, sighandler);
+    printf("echoing interrupted due to SIGINT.\n");
+    remove(WKP);
+    exit(1);
+  }
+}
+
 /*=========================
   server_handshake
   args: int * to_client
-
   Performs the client side pipe 3 way handshake.
   Sets *to_client to the file descriptor to the downstream pipe.
-
   returns the file descriptor for the upstream pipe.
   =========================*/
 int server_handshake(int *to_client) {
@@ -40,19 +65,27 @@ int server_handshake(int *to_client) {
   if (*to_client < 0)
     perror("Writing side malfunction...\n");
 
-  printf("Our brains connected. Sending brainwaves. Be on the lookout.\n");
+  remove(WKP);
+  //printf("Our brains connected. Sending brainwaves. Be on the lookout.\n");
   int w = write(*to_client, "shwooooom", strlen("shwooooom"));
   if ( w < 0)
     perror ("your writing bad");
 
-  printf("Waiting for client...\n");
-  read(fd, buf, sizeof(buf));
-  if (strlen(buf) < 1) {
-    printf("uhhhhh\n");
-    return -1;
-  }
-  printf("We done it! %s recieved.\n", buf);
+  while(1){
+    signal(SIGINT, sighandler);
 
+    //printf("Waiting for client...\n");
+    read(fd, buf, sizeof(buf));
+    char message[256];
+    strcpy(message, scream(buf));
+    //printf("%s\n", scream(buf));
+    strcpy(buf,message);
+    printf("%s\n", buf);
+    //free(message);
+
+    write(*to_client, buf, sizeof(buf));
+
+  }
   return fd;
 }
 
@@ -60,10 +93,8 @@ int server_handshake(int *to_client) {
 /*=========================
   client_handshake
   args: int * to_server
-
   Performs the client side pipe 3 way handshake.
   Sets *to_server to the file descriptor for the upstream pipe.
-
   returns the file descriptor for the downstream pipe.
   =========================*/
 int client_handshake(int *to_server) {
@@ -91,11 +122,28 @@ int client_handshake(int *to_server) {
   read(fd, buf, sizeof(buf));
   printf("Your message, your highness: %s\n", buf);
 
+  printf("\n\n starting up your echo chamber \n\n");
+
+  signal(SIGINT, sighandler);
+
+
+  while(1) {
+    printf("Now write back!\n");
+    fgets(buf, 255, stdin);
+    buf[strlen(buf)] = 0;
+    write(*to_server, buf, sizeof(buf));
+
+
+    if (open(pipe, O_RDONLY) == -1 ) {
+      perror("Cannot open pipe.");
+      exit(0);
+    }
+    read(fd, buf, sizeof(buf));
+    printf("recieved message: %s\n", buf);
+
+
+  }
+
   remove(pipe);
-
-  printf("Now write back!\n");
-  write(*to_server, "your mom!", strlen("your mom!"));
-
   return fd;
-
 }
