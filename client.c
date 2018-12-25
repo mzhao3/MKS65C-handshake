@@ -4,19 +4,21 @@ static void sighandler(int signo) {
   if (signo == SIGINT) {
     signal( signo, sighandler);
     printf("client closing.\n");
-    remove("server");
+    //remove("server");
     exit(0);
   }
 }
 
 int main() {
+  signal(SIGINT, sighandler);
 
   int to_server;
   int from_server;
   char buf[BUFFER_SIZE];
 
+  from_server = client_handshake( &to_server );
+
   while(1){
-    from_server = client_handshake( &to_server );
 
     printf("Now write back!\n");
     fgets(buf, 255, stdin);
@@ -27,6 +29,6 @@ int main() {
     printf("recieved message: %s\n", buf);
 
 
-
   }
+  return 0;
 }

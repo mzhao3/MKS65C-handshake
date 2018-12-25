@@ -2,7 +2,6 @@
 
 static void sighandler(int signo) {
   if (signo == SIGINT) {
-    signal( signo, sighandler);
     printf("server closing.\n");
     remove("server");
     exit(0);
@@ -20,7 +19,7 @@ int main() {
   while(1){
     from_client = server_handshake( &to_client );
 
-
+    if (from_client){
     //printf("Waiting for client...\n");
     while(read(from_client, buf, BUFFER_SIZE) ) {
       char message[BUFFER_SIZE];
@@ -32,7 +31,8 @@ int main() {
 
       write(to_client, buf, BUFFER_SIZE);
     }
-    printf("client disconnected. handshake again?\n");
+    printf("client disconnected. handshake again?\n");}
   }
+  return 0;
 
 }

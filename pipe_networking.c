@@ -38,11 +38,11 @@ static void sighandler(int signo) {
 int server_handshake(int *to_client) {
   //reads first
   remove(WKP);
-  char buf[256];
+  char buf[HANDSHAKE_BUFFER_SIZE];
   int fd;
 
   //creates the WKP
-  if (mkfifo(WKP, 0666) < 0) {
+  if (mkfifo(WKP, 0644) < 0) {
     perror("Server pipe failure.");
     exit(0);
   }
@@ -59,34 +59,33 @@ int server_handshake(int *to_client) {
   read(fd, buf, sizeof(buf));
   printf("This pipe says %s\n\n", buf);
 
-  printf("Write back bro.\n");
-  // opens in write mode
-  *to_client = open(buf, O_WRONLY);
-  if (*to_client < 0)
-    perror("Writing side malfunction...\n");
+  int f = fork();
+  if (f==0) {
+    printf("Remove WKP.\n");
+    remove(WKP);
+  }
+  else {
+    printf("Write back bro.\n");
+    // opens in write mode
+    *to_client = open(buf, O_WRONLY);
+    if (*to_client < 0)
+      perror("Writing side malfunction...\n");
+    int w = write(*to_client, ACK, sizeof(ACK));
+    if ( w < 0)
+      perror ("your writing bad");
 
-  remove(WKP);
-  //printf("Our brains connected. Sending brainwaves. Be on the lookout.\n");
-  int w = write(*to_client, "shwooooom", strlen("shwooooom"));
-  if ( w < 0)
-    perror ("your writing bad");
-
-  while(1){
-    signal(SIGINT, sighandler);
-
-    //printf("Waiting for client...\n");
+    //printf("Our brains connected. Sending brainwaves. Be on the lookout.\n");
     read(fd, buf, sizeof(buf));
     char message[256];
     strcpy(message, scream(buf));
     //printf("%s\n", scream(buf));
     strcpy(buf,message);
     printf("%s\n", buf);
-    //free(message);
-
-    write(*to_client, buf, sizeof(buf));
+    //write(*to_client, buf, sizeof(buf));
+    return fd;
 
   }
-  return fd;
+  return 0;
 }
 
 
@@ -101,6 +100,8 @@ int client_handshake(int *to_server) {
   int fd;
   char buf[256];
   char *pipe = "private";
+
+  //remove(pipe);
 
   if (mkfifo(pipe, 0666) < 0) {
     perror("Client pipe failure.");
@@ -122,28 +123,9 @@ int client_handshake(int *to_server) {
   read(fd, buf, sizeof(buf));
   printf("Your message, your highness: %s\n", buf);
 
-  printf("\n\n starting up your echo chamber \n\n");
-
-  signal(SIGINT, sighandler);
-
-
-  while(1) {
-    printf("Now write back!\n");
-    fgets(buf, 255, stdin);
-    buf[strlen(buf)] = 0;
-    write(*to_server, buf, sizeof(buf));
-
-
-    if (open(pipe, O_RDONLY) == -1 ) {
-      perror("Cannot open pipe.");
-      exit(0);
-    }
-    read(fd, buf, sizeof(buf));
-    printf("recieved message: %s\n", buf);
-
-
-  }
-
   remove(pipe);
+
+  //printf("Writing back to server");
+  write(*to_server, ACK, sizeof(ACK));
   return fd;
 }
